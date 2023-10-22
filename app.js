@@ -116,26 +116,26 @@ app.delete('/api/books/:id', (req,res) => {
   .catch(error => res.status(400).json({ error }));
 });
 
-// app.post('/api/books/:id/rating', (req,res) => {
-//   const bookId = req.params.id; //Id du livre
-//   const { userId, grade } = req.body; //'ID de l'utilisateur et la note
-//   if (grade < 0 || grade > 5) {
-//       return res.status(400).json({ error: 'La note doit être comprise entre 0 et 5.' });
-//   } // Erreur si la note n'est pas comprise entre 0 et 5
-//   const alreadyRated = Book.findOne({ _id: bookId, 'ratings.userId': userId }); //Cherche un livre avec un id specifique et ou ou l'userid a deja note
-//   if (alreadyRated) { //Erreur si l'utilisateur a deja note
-//       return res.status(400).json({ error: 'L\'utilisateur a déjà noté ce livre.' });
-//   }
-//   const updatedBook = Book.findOneAndUpdate(// Met à jour le livre dans la base de données
-//       { _id: bookId },
-//       {
-//           $push: { ratings: { userId, grade } }, //Ajouter un nouvel userId et un nouveau grade a ratings
-//           $inc: { averageRating: grade }, //Ajuste la note moyenne avec un nouveau grade
-//       },
-//       { new: true } // Pour retourner le document mis à jour
-//   )
-//       .then(updatedBook => { res.status(200).json(updatedBook); })
-//       .catch(error => { res.status(404).json({ error }); });
-// });
+app.post('/api/books/:id/rating', (req,res) => {
+  const bookId = req.params.id; //Id du livre
+  const { userId, grade } = req.body; //'ID de l'utilisateur et la note
+  if (grade < 0 || grade > 5) {
+      return res.status(400).json({ error: 'La note doit être comprise entre 0 et 5.' });
+  } // Erreur si la note n'est pas comprise entre 0 et 5
+  const alreadyRated = Book.findOne({ _id: bookId, 'ratings.userId': userId }); //Cherche un livre avec un id specifique et ou ou l'userid a deja note
+  if (alreadyRated) { //Erreur si l'utilisateur a deja note
+      return res.status(400).json({ error: 'L\'utilisateur a déjà noté ce livre.' });
+  }
+  const updatedBook = Book.findOneAndUpdate(// Met à jour le livre dans la base de données
+      { _id: bookId },
+      {
+          $push: { ratings: { userId, grade } }, //Ajouter un nouvel userId et un nouveau grade a ratings
+          $inc: { averageRating: grade }, //Ajuste la note moyenne avec un nouveau grade
+      },
+      { new: true } // Pour retourner le document mis à jour
+  )
+      .then(updatedBook => { res.status(200).json(updatedBook); })
+      .catch(error => { res.status(404).json({ error }); });
+});
 
 module.exports = app;
