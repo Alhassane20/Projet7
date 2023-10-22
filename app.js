@@ -38,11 +38,23 @@ app.post('/api/auth/signup', (req, res,) => {
         .catch(error => res.status(400).json({ error }));
   });
 
-  app.post('/api/stuff', (req, res,) => {
-    console.log(req.body);
-    res.status(201).json({
-      message: 'Objet créé !'
-    });
+  const jwt = require('jsonwebtoken');
+  app.post('/api/auth/login', (req, res,) => {
+    const user = req.body;
+    User.findOne({ email: user.email, password: user.password })
+        .then(userFound => {
+            if (!userFound) {
+                return res.status(401).json({ error: 'Identifiants incorrects' });
+            }
+            const token = jwt.sign(
+                { userId: userFound._id }, 'RANDOM_TOKEN_SECRET',
+            );
+            res.status(200).json({ userId: userFound._id, token });
+        })
+        .catch(error => {
+            res.status(404).json({ error });
+            console.error('Error in checkUser:', error); // Log any errors
+        });
   });
 
 module.exports = app;
