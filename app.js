@@ -87,12 +87,10 @@ app.get('/api/books/bestrating', (req, res) => {
 //     callback(null, Date.now() + '-' + file.originalname); // Nom de fichier unique basé sur le timestamp
 //   },
 // });
-
 // // Créez une instance de middleware multer avec la configuration
 // const upload = multer({ storage: storage });
-
 // // Utilisez multer comme middleware pour gérer le téléchargement de fichiers
-// app.post('/api/books', upload.single('image'), (req, res) => {
+// app.put('/api/books/:id', upload.single('image'), (req, res) => {
 //   const book = new Book({
 //     ...req.body,
 //     imageUrl: req.file.path, // Utilisez le chemin du fichier téléchargé
@@ -102,11 +100,11 @@ app.get('/api/books/bestrating', (req, res) => {
 //     .catch(error => res.status(400).json({ error }));
 // });
 
-// app.get('/api/books/:id', (req,res) => {
-//   Book.findOne({ _id: req.params.id })
-//   .then(Book => res.status(200).json(Book))
-//   .catch(error => res.status(404).json({ error }))
-// });
+app.get('/api/books/:id', (req,res) => {
+  Book.findOne({ _id: req.params.id })
+  .then(Book => res.status(200).json(Book))
+  .catch(error => res.status(404).json({ error }))
+});
 
 const fs = require('fs'); //importer le module fs
 app.delete('/api/books/:id', (req,res) => {
