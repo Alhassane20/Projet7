@@ -71,19 +71,20 @@ app.post('/api/auth/login', (req, res,) => {
     });
 });
 
-// Route pour créer un nouveau livre
 app.post('/api/books', upload.single('image'), (req, res) => {
-  const bookData = {
-    ...req.body,
-    imageUrl: req.file.path, // Utilisez le chemin du fichier téléchargé
-  };
+  const formData = {
 
-  const book = new Book(bookData);
+    ...JSON.parse(req.body.book),
+    imageUrl: req.file.path, // Utilisez le chemin du fichier téléchargé
+
+  };
+  const book = new Book(formData);
 
   book.save()
     .then(() => res.status(201).json({ message: 'Livre enregistré !' }))
     .catch(error => res.status(400).json({ error }));
 });
+
 
 app.get('/api/books', (req, res,) => {
   Book.find()
