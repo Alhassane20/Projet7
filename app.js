@@ -20,6 +20,13 @@ const storage = multer.diskStorage({
 // Créez une instance de middleware Multer avec la configuration
 const upload = multer({ storage: storage });
 // Utilisez Multer comme middleware pour gérer le téléchargement de fichiers
+// Servir les images pour le formulaire depuis le dossier "upload"
+app.use('/uploads', express.static(__dirname + '/uploads'));
+
+// Servir les images reçues depuis le formulaire depuis le dossier "image"
+app.use('/image', express.static(__dirname + '/image'));
+
+
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -100,6 +107,11 @@ app.get('/api/books/bestrating', (req, res) => {
     .catch(error => res.status(500).json({ error }));
 });
 
+app.get('/api/books/:id', (req, res) => {
+  Book.findOne({ _id: req.params.id })
+    .then(Book => res.status(200).json(Book))
+    .catch(error => res.status(404).json({ error }))
+});
 app.put('/api/books/:id', upload.single('image'), (req, res) => {// Route pour mettre à jour un livre
   const bookId = req.params.id; // Récupérer l'identifiant du livre depuis les paramètres de la requête
   const updatedBookData = { ...req.body }; // Copier les données du corps de la requête
@@ -123,12 +135,6 @@ app.put('/api/books/:id', upload.single('image'), (req, res) => {// Route pour m
     });
 });
 
-app.get('/api/books/:id', (req, res) => {
-  Book.findOne({ _id: req.params.id })
-    .then(Book => res.status(200).json(Book))
-    .catch(error => res.status(404).json({ error }))
-});
-
 const fs = require('fs'); //importer le module fs
 app.delete('/api/books/:id', (req, res) => {
   Book.deleteOne({ _id: req.params.id })
@@ -139,26 +145,41 @@ app.delete('/api/books/:id', (req, res) => {
     .catch(error => res.status(400).json({ error }));
 });
 
-app.post('/api/books/:id/rating', (req, res) => {
-  const bookId = req.params.id; //Id du livre
-  const { userId, grade } = req.body; //'ID de l'utilisateur et la note
+app.post('/api/books/:id/rating', async (req, res) => {
+  const bookId = req.params.id;
+  const { userId, grade } = req.body;
   if (grade < 0 || grade > 5) {
     return res.status(400).json({ error: 'La note doit être comprise entre 0 et 5.' });
-  } // Erreur si la note n'est pas comprise entre 0 et 5
-  const alreadyRated = Book.findOne({ _id: bookId, 'ratings.userId': userId }); //Cherche un livre avec un id specifique et ou ou l'userid a deja note
-  if (alreadyRated) { //Erreur si l'utilisateur a deja note
-    return res.status(400).json({ error: 'L\'utilisateur a déjà noté ce livre.' });
   }
-  const updatedBook = Book.findOneAndUpdate(// Met à jour le livre dans la base de données
-    { _id: bookId },
-    {
-      $push: { ratings: { userId, grade } }, //Ajouter un nouvel userId et un nouveau grade a ratings
-      $inc: { averageRating: grade }, //Ajuste la note moyenne avec un nouveau grade
-    },
-    { new: true } // Pour retourner le document mis à jour
-  )
-    .then(updatedBook => { res.status(200).json(updatedBook); })
-    .catch(error => { res.status(404).json({ error }); });
+  try {
+    const userExists = await User.findById(userId);
+    if (!userExists) {
+      return res.status(400).json({ error: "L'utilisateur associé au livre n'existe pas." });
+    }
+    const book = await Book.findOne({
+      _id: bookId
+    });
+    console.log(book)
+
+    const alreadyRated = false // tester si le rating pour ce userId existe dans le book
+
+    if (alreadyRated) {
+      return res.status(400).json({ error: "L'utilisateur a déjà noté ce livre." });
+    }
+    // Mettre à jour le livre dans la base de données
+    const updatedBook = await Book.findOneAndUpdate(
+      { _id: bookId },
+      {
+        $push: { ratings: { userId, grade } },
+        $inc: { averageRating: grade }
+      },
+      { new: true }
+    );
+    res.status(200).json(updatedBook);
+  } catch (error) {
+    res.status(404).json({ error: 'Erreur lors de la notation du livre.' });
+  }
 });
+
 
 module.exports = app;
