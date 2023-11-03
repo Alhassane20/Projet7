@@ -62,44 +62,44 @@ app.post('/api/auth/signup', (req, res,) => { // Créer un utilisateur
 const jwt = require('jsonwebtoken');
 app.post('/api/auth/login', (req, res,) => { // Authentifier un compte
   const user = req.body;
-  User.findOne({ email: user.email, password: user.password })
+  User.findOne({ email: user.email, password: user.password }) // Récupere le mail et le mdp de la requete
     .then(userFound => {
-      if (!userFound) {
+      if (!userFound) { // Vérifie si les infos sont corrects
         return res.status(401).json({ error: 'Identifiants incorrects' });
       }
       const token = jwt.sign(
         { userId: userFound._id }, 'RANDOM_TOKEN_SECRET',
-      );
+      ); // Genere un token qui contient l'id de l'utilisateur et une cle secrete
       res.status(200).json({ userId: userFound._id, token });
     })
     .catch(error => {
       res.status(404).json({ error });
-      console.error('Error in checkUser:', error); // Log any errors
+      console.error('Error authentification:', error);
     });
 });
 
 app.post('/api/books', upload.single('image'), (req, res) => { // Ajouter un livre
   const formData = {
 
-    ...JSON.parse(req.body.book),
-    imageUrl: req.file.path, // Utilisez le chemin du fichier téléchargé
+    ...JSON.parse(req.body.book), // Convertir la requete en json
+    imageUrl: req.file.path, // Chemin du fichier téléchargé
 
   };
-  const book = new Book(formData);
+  const book = new Book(formData); // Créer le livre en lui appliquant les données de la requete
 
-  book.save()
+  book.save() // Enregistrer le nouveau livre dans la base
     .then(() => res.status(201).json({ message: 'Livre enregistré !' }))
     .catch(error => res.status(400).json({ error }));
 });
 
 
 app.get('/api/books', (req, res,) => { // Afficher tous les livres
-  Book.find()
+  Book.find() // Rechercher tout les livres de la base
     .then(books => res.status(200).json(books))
     .catch(error => res.status(500).json({ error }));
 });
 
-app.get('/api/books/bestrating', (req, res) => { // Afficher les 3 livres les mieux notés 
+app.get('/api/books/bestrating', (req, res) => { // Afficher les 3 livres les mieux notes 
   Book.find()
     .sort({ averageRating: -1 }) // Tri par ordre décroissant de la note moyenne
     .limit(3) // Limiter les résultats à 3
@@ -108,38 +108,36 @@ app.get('/api/books/bestrating', (req, res) => { // Afficher les 3 livres les mi
 });
 
 app.get('/api/books/:id', (req, res) => { // Affiche un livre
-  Book.findOne({ _id: req.params.id })
+  Book.findOne({ _id: req.params.id }) // Recherche un livre de la base avec l'id de la requete
     .then(Book => res.status(200).json(Book))
     .catch(error => res.status(404).json({ error }))
 });
-app.put('/api/books/:id', upload.single('image'), (req, res) => {// Mettre à jour un livre
-  const bookId = req.params.id; // Récupérer l'identifiant du livre depuis les paramètres de la requête
-  const updatedBookData = { ...req.body }; // Copier les données du corps de la requête
+app.put('/api/books/:id', upload.single('image'), (req, res) => {// Mettre a jour un livre
+  const bookId = req.params.id; // Recuperer l'id du livre de la requete
+  const updatedBookData = { ...req.body }; // Copier les nouvelles donnees de la requete
   if (req.file) {
-    // Si un fichier est téléchargé, mettre à jour le champ 'imageUrl' avec le chemin du fichier
+    // Si un fichier est telecharge, met a jour le 'imageUrl' avec le chemin du fichier
     updatedBookData.imageUrl = req.file.path;
   }
-  // Utiliser la méthode 'findByIdAndUpdate' de Mongoose pour mettre à jour le livre
+  // Methode findByIdAndUpdate pour mettre a jour le livre
   Book.findByIdAndUpdate(bookId, updatedBookData, { new: true })
     .then(updatedBook => {
       if (!updatedBook) {
-        // Si le livre n'est pas trouvé, renvoyer une réponse d'erreur 404
+        // Si le livre n'est pas trouve, erreur 404
         return res.status(404).json({ error: 'Livre non trouvé' });
       }
-      // Si la mise à jour est réussie, renvoyer le livre mis à jour en réponse
       res.status(200).json(updatedBook);
     })
     .catch(error => {
-      // En cas d'erreur, renvoyer une réponse d'erreur 500
       res.status(500).json({ error });
     });
 });
 
 const fs = require('fs'); //importer le module fs
 app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
-  Book.deleteOne({ _id: req.params.id })
+  Book.deleteOne({ _id: req.params.id }) // Supprimer le ivre dans la base
     .then(() => {
-      fs.unlinkSync(req.body.imageUrl); //Méthode du module fs qui est utilisée pour supprimer un fichier
+      fs.unlinkSync(req.body.imageUrl); //Methode du module fs pour supprimer le fichier de l'image
       res.status(200).json({ message: 'Livre et image supprimé !' });
     })
     .catch(error => res.status(400).json({ error }));
