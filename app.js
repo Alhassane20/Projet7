@@ -50,7 +50,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.post('/api/auth/signup', (req, res,) => {
+app.post('/api/auth/signup', (req, res,) => { // Créer un utilisateur
   const user = new User({
     ...req.body //Méthode spread fais une copie de tous les elements de req.body
   })
@@ -60,7 +60,7 @@ app.post('/api/auth/signup', (req, res,) => {
 });
 
 const jwt = require('jsonwebtoken');
-app.post('/api/auth/login', (req, res,) => {
+app.post('/api/auth/login', (req, res,) => { // Authentifier un compte
   const user = req.body;
   User.findOne({ email: user.email, password: user.password })
     .then(userFound => {
@@ -78,7 +78,7 @@ app.post('/api/auth/login', (req, res,) => {
     });
 });
 
-app.post('/api/books', upload.single('image'), (req, res) => {
+app.post('/api/books', upload.single('image'), (req, res) => { // Ajouter un livre
   const formData = {
 
     ...JSON.parse(req.body.book),
@@ -93,13 +93,13 @@ app.post('/api/books', upload.single('image'), (req, res) => {
 });
 
 
-app.get('/api/books', (req, res,) => {
+app.get('/api/books', (req, res,) => { // Afficher tous les livres
   Book.find()
     .then(books => res.status(200).json(books))
     .catch(error => res.status(500).json({ error }));
 });
 
-app.get('/api/books/bestrating', (req, res) => {
+app.get('/api/books/bestrating', (req, res) => { // Afficher les 3 livres les mieux notés 
   Book.find()
     .sort({ averageRating: -1 }) // Tri par ordre décroissant de la note moyenne
     .limit(3) // Limiter les résultats à 3
@@ -107,12 +107,12 @@ app.get('/api/books/bestrating', (req, res) => {
     .catch(error => res.status(500).json({ error }));
 });
 
-app.get('/api/books/:id', (req, res) => {
+app.get('/api/books/:id', (req, res) => { // Affiche un livre
   Book.findOne({ _id: req.params.id })
     .then(Book => res.status(200).json(Book))
     .catch(error => res.status(404).json({ error }))
 });
-app.put('/api/books/:id', upload.single('image'), (req, res) => {// Route pour mettre à jour un livre
+app.put('/api/books/:id', upload.single('image'), (req, res) => {// Mettre à jour un livre
   const bookId = req.params.id; // Récupérer l'identifiant du livre depuis les paramètres de la requête
   const updatedBookData = { ...req.body }; // Copier les données du corps de la requête
   if (req.file) {
@@ -136,7 +136,7 @@ app.put('/api/books/:id', upload.single('image'), (req, res) => {// Route pour m
 });
 
 const fs = require('fs'); //importer le module fs
-app.delete('/api/books/:id', (req, res) => {
+app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
   Book.deleteOne({ _id: req.params.id })
     .then(() => {
       fs.unlinkSync(req.body.imageUrl); //Méthode du module fs qui est utilisée pour supprimer un fichier
@@ -145,7 +145,7 @@ app.delete('/api/books/:id', (req, res) => {
     .catch(error => res.status(400).json({ error }));
 });
 
-app.post('/api/books/:id/rating', async (req, res) => {
+app.post('/api/books/:id/rating', async (req, res) => { // Noter un livre
   const bookId = req.params.id;
   const { userId, grade } = req.body;
   if (grade < 0 || grade > 5) {
