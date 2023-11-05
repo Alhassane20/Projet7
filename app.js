@@ -144,35 +144,33 @@ app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
 });
 
 app.post('/api/books/:id/rating', async (req, res) => { // Noter un livre
-  console.log('*******requete*******',req);
-  const bookId = req.params.id; // Recuperer l'id du livre dans le corps de la requete
-  console.log('BOOKID',bookId);
-  console.log(req.body);
-  const { userId, grade } = req.body; // Recuperer l'id de l'utilisateur
+  const bookId = req.params.id;
+  const userId = req.body.userId;
+  const grade = req.body.rating;
   if (grade < 0 || grade > 5) {
     return res.status(400).json({ error: 'La note doit être comprise entre 0 et 5.' });
   }
   try {
-    const userExists = await User.findById(userId); // Verifier si l'utilisateur existe en ncherchant son id
+    const userExists = await User.findById(userId);
     if (!userExists) {
-      return res.status(401).json({ error: "L'utilisateur associé au livre n'existe pas." });
+      return res.status(400).json({ error: "L'utilisateur associé au livre n'existe pas." });
     }
-    const book = await Book.findOne({ // Recuperer les informations du livre a noter avec son id
+    const book = await Book.findOne({
       _id: bookId
     });
-    const alreadyRated = book.ratings.filter(rating => rating.userId.equals(userId)).length > 0;
-    // Vérifier si l'utilisateur l'a deja noter
+    // chercher le rating potentiellement fait par l'utilisateur
+    const alreadyRated = book.ratings.filter(rating => rating.userId == userId).length > 0 // tester si le rating pour ce userId existe dans le book
     if (alreadyRated) {
-      return res.status(402).json({ error: "L'utilisateur a déjà noté ce livre." });
+      return res.status(400).json({ error: "L'utilisateur a déjà noté ce livre." });
     }
     // Mettre à jour le livre dans la base de données
-    const updatedBook = await Book.findOneAndUpdate( // Maj le livre dans la base
+    const updatedBook = await Book.findOneAndUpdate(
       { _id: bookId },
       {
-        $push: { ratings: { userId, grade } }, // Ajoute la nouvelle notation a la liste des notations existantes
-        $inc: { averageRating: grade } // Met a jour la note moyenne en incrementant la valeur de la nouvelle note
+        $push: { ratings: { userId, grade } },
+        $inc: { averageRating: grade }
       },
-      { new: true } // Renvoie la version mise à jour du livre
+      { new: true }
     );
     res.status(200).json(updatedBook);
   } catch (error) {
