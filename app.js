@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const sharp = require('sharp'); // Importez la dépendance Sharp
 const path = require('path');
 const { User, Book } = require('./models/things');
 
@@ -10,7 +11,7 @@ const app = express();
 app.use(express.json());
 
 // Configuration de Multer pour stocker les fichiers téléchargés dans le dossier 'images'
-const storage = multer.diskStorage({
+const storage = multer.memoryStorage({
   destination: (req, file, callback) => {
     callback(null, 'image'); // Dossier de destination pour les fichiers téléchargés
   },
@@ -75,19 +76,40 @@ app.post('/api/auth/login', (req, res,) => { // Authentifier un compte
     });
 });
 
-app.post('/api/books', upload.single('image'), (req, res) => { // Ajouter un livre
-  const formData = {
+app.post('/api/books', upload.single('image'), async (req, res) => {
+  try {
+    // Utilisez Sharp pour optimiser l'image téléchargée
+    const optimizedImageBuffer = await sharp(req.file.buffer)
+      .webp({ quality: 20 }) // Convertissez en format WebP avec une qualité de 20%
+      .toBuffer();
 
-    ...JSON.parse(req.body.book), // Convertir la requete en json
-    imageUrl: req.file.path, // Chemin du fichier téléchargé
+    // Créez un nom de fichier unique pour cette image (en utilisant la timestamp par exemple)
+    const uniqueFilename = Date.now() + '-' + req.file.originalname + '.webp';
 
-  };
-  const book = new Book(formData); // Créer le livre en lui appliquant les données de la requete
+    // Enregistrez l'image optimisée dans un dossier (dans votre cas, le dossier "image")
+    fs.writeFile(path.join(__dirname, 'image', uniqueFilename), optimizedImageBuffer, err => {
+      if (err) {
+        console.error("Erreur lors de l'enregistrement de l'image optimisée :", err);
+        return res.status(400).json({ error: "Erreur lors de l'enregistrement de l'image optimisée" });
+      }
 
-  book.save() // Enregistrer le nouveau livre dans la base
-    .then(() => res.status(201).json({ message: 'Livre enregistré !' }))
-    .catch(error => res.status(400).json({ error }));
+      // Récupérez les données du livre depuis la requête
+      const bookData = JSON.parse(req.body.book);
+      bookData.imageUrl = '/image/' + uniqueFilename; // Assurez-vous que le chemin est correct
+
+      // Créez un nouveau livre avec les données
+      const book = new Book(bookData);
+
+      // Enregistrez le nouveau livre dans la base de données
+      book.save()
+        .then(() => res.status(201).json({ message: 'Livre enregistré !' }))
+        .catch(error => res.status(400).json({ error }));
+    });
+  } catch (error) {
+    res.status(400).json({ error: 'Erreur lors de l\'optimisation de l\'image' });
+  }
 });
+
 
 
 app.get('/api/books', (req, res,) => { // Afficher tous les livres
@@ -109,26 +131,33 @@ app.get('/api/books/:id', (req, res) => { // Affiche un livre
     .then(Book => res.status(200).json(Book))
     .catch(error => res.status(404).json({ error }))
 });
-app.put('/api/books/:id', upload.single('image'), (req, res) => {// Mettre a jour un livre
-  const bookId = req.params.id; // Recuperer l'id du livre de la requete
-  const updatedBookData = { ...req.body }; // Copier les nouvelles donnees de la requete
-  if (req.file) {
-    // Si un fichier est telecharge, met a jour le 'imageUrl' avec le chemin du fichier
-    updatedBookData.imageUrl = req.file.path;
+app.put('/api/books/:id', upload.single('image'), async (req, res) => {
+  const bookId = req.params.id; // Récupérer l'ID du livre de la requête
+  const updatedBookData = { ...req.body }; // Copier les nouvelles données de la requête
+
+  try { // Mettre à jour l'image du livre avec la nouvelle image optimisée
+    if (req.file) {
+      const optimizedImageBuffer = await sharp(req.file.buffer) // Utiliser optimizedImageBuffer à la place de req.file.path
+        .webp({ quality: 20 })       
+        .toBuffer();
+    }
+    // Methode findByIdAndUpdate pour mettre à jour le livre
+    Book.findByIdAndUpdate(bookId, updatedBookData, { new: true })
+      .then(updatedBook => {
+        if (!updatedBook) {
+          // Si le livre n'est pas trouvé, renvoyer une erreur 404
+          return res.status(404).json({ error: 'Livre non trouvé' });
+        }
+        res.status(200).json(updatedBook);
+      })
+      .catch(error => {
+        res.status(500).json({ error });
+      });
+  } catch (error) {
+    res.status(400).json({ error: 'Erreur lors de l\'optimisation de l\'image' });
   }
-  // Methode findByIdAndUpdate pour mettre a jour le livre
-  Book.findByIdAndUpdate(bookId, updatedBookData, { new: true })
-    .then(updatedBook => {
-      if (!updatedBook) {
-        // Si le livre n'est pas trouve, erreur 404
-        return res.status(404).json({ error: 'Livre non trouvé' });
-      }
-      res.status(200).json(updatedBook);
-    })
-    .catch(error => {
-      res.status(500).json({ error });
-    });
 });
+
 
 const fs = require('fs'); //importer le module fs
 app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
