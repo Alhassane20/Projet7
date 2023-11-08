@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
+const path = require('path');
 const { User, Book } = require('./models/things');
 
 
@@ -20,13 +21,9 @@ const storage = multer.diskStorage({
 // Créez une instance de middleware Multer avec la configuration
 const upload = multer({ storage: storage });
 // Utilisez Multer comme middleware pour gérer le téléchargement de fichiers
-// Servir les images pour le formulaire depuis le dossier "upload"
-app.use('/uploads', express.static(__dirname + '/uploads'));
 
 // Servir les images reçues depuis le formulaire depuis le dossier "image"
-app.use('/image', express.static(__dirname + '/image'));
-
-
+app.use('/image', express.static(path.join(__dirname, 'image')));
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
