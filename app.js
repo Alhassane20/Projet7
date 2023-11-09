@@ -11,8 +11,8 @@ const app = express();
 app.use(express.json());
 
 const MIME_TYPES = {
-  'image/jpg' : 'jpg',
-  'image/jpeg' : 'jpg',
+  'image/jpg': 'jpg',
+  'image/jpeg': 'jpg',
 }
 
 // Servir les images reçues depuis le formulaire depuis le dossier "image"
@@ -72,27 +72,22 @@ app.post('/api/books', upload.single('image'), async (req, res) => {
   try {
     // Utiliser Sharp pour optimiser l'image téléchargée
     const optimizedImageBuffer = await sharp(req.file.buffer)
-      .webp({ quality: 20 }) // Convertissez en format WebP avec une qualité de 20%
+      .webp({ quality: 20 }) // Converti en format WebP avec une qualité de 20%
       .toBuffer();
-
-    // Créez un nom de fichier unique pour cette image (en utilisant la timestamp par exemple)
+    // Créer un nom de fichier unique pour cette image
     const uniqueFilename = Date.now() + '-' + req.file.originalname + '.webp';
-
-    // Enregistrez l'image optimisée dans un dossier (dans votre cas, le dossier "image")
+    // Enregistrer l'image optimisée dans le dossier "image"
     fs.writeFile(path.join(__dirname, 'image', uniqueFilename), optimizedImageBuffer, err => {
       if (err) {
         console.error("Erreur lors de l'enregistrement de l'image optimisée :", err);
         return res.status(400).json({ error: "Erreur lors de l'enregistrement de l'image optimisée" });
       }
-
       // Récupérez les données du livre depuis la requête
       const bookData = JSON.parse(req.body.book);
       bookData.imageUrl = '/image/' + uniqueFilename; // Assurez-vous que le chemin est correct
-
       // Créez un nouveau livre avec les données
       const book = new Book(bookData);
-
-      // Enregistrez le nouveau livre dans la base de données
+      // Enregistrer le nouveau livre dans la base de données
       book.save()
         .then(() => res.status(201).json({ message: 'Livre enregistré !' }))
         .catch(error => res.status(400).json({ error }));
@@ -101,8 +96,6 @@ app.post('/api/books', upload.single('image'), async (req, res) => {
     res.status(400).json({ error: 'Erreur lors de l\'optimisation de l\'image' });
   }
 });
-
-
 
 app.get('/api/books', (req, res,) => { // Afficher tous les livres
   Book.find() // Rechercher tout les livres de la base
@@ -130,7 +123,7 @@ app.put('/api/books/:id', upload.single('image'), async (req, res) => {
   try { // Mettre à jour l'image du livre avec la nouvelle image optimisée
     if (req.file) {
       const optimizedImageBuffer = await sharp(req.file.buffer) // Utiliser optimizedImageBuffer à la place de req.file.path
-        .webp({ quality: 20 })       
+        .webp({ quality: 20 })
         .toBuffer();
     }
     // Methode findByIdAndUpdate pour mettre à jour le livre
