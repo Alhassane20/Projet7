@@ -166,40 +166,54 @@ app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
 });
 
 
-app.post('/api/books/:id/rating', async (req, res) => { // Noter un livre
+app.post('/api/books/:id/rating', async (req, res) => {
   const bookId = req.params.id;
   const userId = req.body.userId;
   const grade = req.body.rating;
+
   if (grade < 0 || grade > 5) {
     return res.status(400).json({ error: 'La note doit être comprise entre 0 et 5.' });
   }
+
   try {
     const userExists = await User.findById(userId);
+
     if (!userExists) {
       return res.status(400).json({ error: "L'utilisateur associé au livre n'existe pas." });
     }
-    const book = await Book.findOne({
-      _id: bookId
-    });
-    // chercher le rating potentiellement fait par l'utilisateur
-    const alreadyRated = book.ratings.filter(rating => rating.userId == userId).length > 0 // tester si le rating pour ce userId existe dans le book
+
+    const book = await Book.findById(bookId);
+
+    if (!book) {
+      return res.status(404).json({ error: 'Livre non trouvé.' });
+    }
+
+    // Vérifier si l'utilisateur a déjà évalué ce livre
+    const alreadyRated = book.ratings.find((rating) => rating.userId == userId);
+
     if (alreadyRated) {
       return res.status(400).json({ error: "L'utilisateur a déjà noté ce livre." });
     }
-    // Mettre à jour le livre dans la base de données
-    const updatedBook = await Book.findOneAndUpdate(
-      { _id: bookId },
-      {
-        $push: { ratings: { userId, grade } },
-        $inc: { averageRating: grade }
-      },
-      { new: true }
-    );
+
+    // Calcul de la nouvelle moyenne
+    const numberOfRatings = book.ratings.length;
+    const currentTotal = book.averageRating * numberOfRatings;
+    const newTotal = currentTotal + grade;
+    const newAverage = newTotal / (numberOfRatings + 1);
+
+    // Ajout de la nouvelle évaluation
+    book.ratings.push({ userId, grade });
+    book.averageRating = newAverage;
+
+    // Sauvegarde du livre mis à jour
+    const updatedBook = await book.save();
+
     res.status(200).json(updatedBook);
   } catch (error) {
-    res.status(404).json({ error: 'Erreur lors de la notation du livre.' });
+    res.status(500).json({ error: 'Erreur lors du calcul de la moyenne d\'évaluation.' });
   }
 });
+
 
 
 module.exports = app;
