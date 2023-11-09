@@ -116,6 +116,7 @@ app.get('/api/books/:id', (req, res) => { // Affiche un livre
     .then(Book => res.status(200).json(Book))
     .catch(error => res.status(404).json({ error }))
 });
+
 app.put('/api/books/:id', upload.single('image'), async (req, res) => {
   const bookId = req.params.id; // Récupérer l'ID du livre de la requête
   const updatedBookData = { ...req.body }; // Copier les nouvelles données de la requête
@@ -151,9 +152,7 @@ app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
       if (!book) {
         return res.status(404).json({ error: 'Livre non trouvé' });
       }
-
       const imagePath = path.join(__dirname, book.imageUrl); // Utiliser path.join pour construire le chemin absolu
-
       fs.unlink(imagePath, (err) => {
         if (err) {
           console.error(err); // Afficher les erreurs dans la console
@@ -170,40 +169,32 @@ app.post('/api/books/:id/rating', async (req, res) => {
   const bookId = req.params.id;
   const userId = req.body.userId;
   const grade = req.body.rating;
-
   if (grade < 0 || grade > 5) {
     return res.status(400).json({ error: 'La note doit être comprise entre 0 et 5.' });
   }
-
   try {
     const userExists = await User.findById(userId);
-
     if (!userExists) {
       return res.status(400).json({ error: "L'utilisateur associé au livre n'existe pas." });
     }
-
     const book = await Book.findById(bookId);
-
     if (!book) {
       return res.status(404).json({ error: 'Livre non trouvé.' });
     }
-
     // Vérifier si l'utilisateur a déjà évalué ce livre
     const alreadyRated = book.ratings.find((rating) => rating.userId == userId);
-
     if (alreadyRated) {
       return res.status(400).json({ error: "L'utilisateur a déjà noté ce livre." });
     }
-
     // Calcul de la nouvelle moyenne
-    const numberOfRatings = book.ratings.length;
-    const currentTotal = book.averageRating * numberOfRatings;
-    const newTotal = currentTotal + grade;
-    const newAverage = newTotal / (numberOfRatings + 1);
+    const numberOfRatings = book.ratings.length; // nombre de notations dans le livre
+    const currentTotal = book.averageRating * numberOfRatings; // note moyenne multiplie par le nombres de notes
+    const newTotal = currentTotal + grade; // ajout d'une nouvelle note dans la moyenne
+    const newAverage = newTotal / (numberOfRatings + 1); // divise le nouveau total des évaluations par le nombre total d'évaluations + 1
 
     // Ajout de la nouvelle évaluation
-    book.ratings.push({ userId, grade });
-    book.averageRating = newAverage;
+    book.ratings.push({ userId, grade }); // ajoute une nouvelle évaluation dans la  ratings du livre
+    book.averageRating = newAverage; // met a jour la moyenne calculée
 
     // Sauvegarde du livre mis à jour
     const updatedBook = await book.save();
