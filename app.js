@@ -1,8 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const multer = require('multer');
-const sharp = require('sharp'); // Importez la dépendance Sharp
+const upload = require('./middlewares/multer')
+const sharp = require('sharp'); // Importer la dépendance Sharp
 const path = require('path');
 const { User, Book } = require('./models/things');
 
@@ -10,18 +10,10 @@ const { User, Book } = require('./models/things');
 const app = express();
 app.use(express.json());
 
-// Configuration de Multer pour stocker les fichiers téléchargés dans le dossier 'images'
-const storage = multer.memoryStorage({
-  destination: (req, file, callback) => {
-    callback(null, 'image'); // Dossier de destination pour les fichiers téléchargés
-  },
-  filename: (req, file, callback) => {
-    callback(null, Date.now() + '-' + file.originalname); // Nom de fichier unique basé sur le timestamp
-  },
-});
-// Créez une instance de middleware Multer avec la configuration
-const upload = multer({ storage: storage });
-// Utilisez Multer comme middleware pour gérer le téléchargement de fichiers
+const MIME_TYPES = {
+  'image/jpg' : 'jpg',
+  'image/jpeg' : 'jpg',
+}
 
 // Servir les images reçues depuis le formulaire depuis le dossier "image"
 app.use('/image', express.static(path.join(__dirname, 'image')));
@@ -78,7 +70,7 @@ app.post('/api/auth/login', (req, res,) => { // Authentifier un compte
 
 app.post('/api/books', upload.single('image'), async (req, res) => {
   try {
-    // Utilisez Sharp pour optimiser l'image téléchargée
+    // Utiliser Sharp pour optimiser l'image téléchargée
     const optimizedImageBuffer = await sharp(req.file.buffer)
       .webp({ quality: 20 }) // Convertissez en format WebP avec une qualité de 20%
       .toBuffer();
@@ -161,13 +153,25 @@ app.put('/api/books/:id', upload.single('image'), async (req, res) => {
 
 const fs = require('fs'); //importer le module fs
 app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
-  Book.deleteOne({ _id: req.params.id }) // Supprimer le ivre dans la base
-    .then(() => {
-      fs.unlinkSync(req.body.imageUrl); //Methode du module fs pour supprimer le fichier de l'image
-      res.status(200).json({ message: 'Livre et image supprimé !' });
+  Book.findByIdAndDelete(req.params.id)
+    .then((book) => {
+      if (!book) {
+        return res.status(404).json({ error: 'Livre non trouvé' });
+      }
+
+      const imagePath = path.join(__dirname, book.imageUrl); // Utiliser path.join pour construire le chemin absolu
+
+      fs.unlink(imagePath, (err) => {
+        if (err) {
+          console.error(err); // Afficher les erreurs dans la console
+          return res.status(500).json({ error: "Erreur lors de la suppression de l'image" });
+        }
+        res.status(200).json({ message: 'Livre et image supprimés !' });
+      });
     })
     .catch(error => res.status(400).json({ error }));
 });
+
 
 app.post('/api/books/:id/rating', async (req, res) => { // Noter un livre
   const bookId = req.params.id;
