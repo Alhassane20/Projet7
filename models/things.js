@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator'); // Pour que l'adresse mail soit unique
+const bcrypt = require('bcrypt');
 
 const userSchema = mongoose.Schema({
     email: {type: String, required: true, unique: true},
@@ -22,6 +23,20 @@ const bookSchema = mongoose.Schema({
 
 userSchema.plugin(uniqueValidator);
 bookSchema.plugin(uniqueValidator);
+
+// Avant de sauvegarder un utilisateur, hacher le mot de passe
+userSchema.pre('save', async function (next) {
+    try {
+        if (!this.isModified('password')) { // Vérifier si le mdp est modifie pour eviter de le hasher a nouveau
+            return next();
+        }
+        const hashedPassword = await bcrypt.hash(this.password, 10); // Hasher le mdp
+        this.password = hashedPassword; // Maj le mdp hasher
+        return next();
+    } catch (error) {
+        return next(error);
+    }
+});
 
 
 const User = mongoose.model('User', userSchema);

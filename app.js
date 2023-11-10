@@ -3,8 +3,10 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const upload = require('./middlewares/multer')
 const sharp = require('sharp'); // Importer la dépendance Sharp
+const fs = require('fs'); //importer le module fs
 const path = require('path');
 const { User, Book } = require('./models/things');
+const authMiddleware = require('./middlewares/auth');
 
 
 const app = express();
@@ -18,7 +20,7 @@ const MIME_TYPES = {
 // Servir les images reçues depuis le formulaire depuis le dossier "image"
 app.use('/image', express.static(path.join(__dirname, 'image')));
 
-app.use((req, res, next) => {
+app.use((req, res, next) => { // autoriser les requetes provenant de differentes origines
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content, Accept, Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -49,7 +51,7 @@ app.post('/api/auth/signup', (req, res,) => { // Créer un utilisateur
     .catch(error => res.status(400).json({ error }));
 });
 
-const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken'); // importer la bibliotheque jsonwebtoken
 app.post('/api/auth/login', (req, res,) => { // Authentifier un compte
   const user = req.body;
   User.findOne({ email: user.email, password: user.password }) // Récupere le mail et le mdp de la requete
@@ -68,7 +70,7 @@ app.post('/api/auth/login', (req, res,) => { // Authentifier un compte
     });
 });
 
-app.post('/api/books', upload.single('image'), async (req, res) => {
+app.post('/api/books', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     // Utiliser Sharp pour optimiser l'image téléchargée
     const optimizedImageBuffer = await sharp(req.file.buffer)
@@ -82,10 +84,10 @@ app.post('/api/books', upload.single('image'), async (req, res) => {
         console.error("Erreur lors de l'enregistrement de l'image optimisée :", err);
         return res.status(400).json({ error: "Erreur lors de l'enregistrement de l'image optimisée" });
       }
-      // Récupérez les données du livre depuis la requête
+      // Récupérer les données du livre depuis la requête
       const bookData = JSON.parse(req.body.book);
-      bookData.imageUrl = '/image/' + uniqueFilename; // Assurez-vous que le chemin est correct
-      // Créez un nouveau livre avec les données
+      bookData.imageUrl = 'http://localhost:4000/image/' + uniqueFilename;
+      // Créer un nouveau livre avec les données
       const book = new Book(bookData);
       // Enregistrer le nouveau livre dans la base de données
       book.save()
@@ -117,7 +119,7 @@ app.get('/api/books/:id', (req, res) => { // Affiche un livre
     .catch(error => res.status(404).json({ error }))
 });
 
-app.put('/api/books/:id', upload.single('image'), async (req, res) => {
+app.put('/api/books/:id', authMiddleware, upload.single('image'), async (req, res) => {
   const bookId = req.params.id; // Récupérer l'ID du livre de la requête
   const updatedBookData = { ...req.body }; // Copier les nouvelles données de la requête
 
@@ -144,9 +146,7 @@ app.put('/api/books/:id', upload.single('image'), async (req, res) => {
   }
 });
 
-
-const fs = require('fs'); //importer le module fs
-app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
+app.delete('/api/books/:id', authMiddleware, (req, res) => { // Supprimer un livre
   Book.findByIdAndDelete(req.params.id)
     .then((book) => {
       if (!book) {
@@ -165,7 +165,7 @@ app.delete('/api/books/:id', (req, res) => { // Supprimer un livre
 });
 
 
-app.post('/api/books/:id/rating', async (req, res) => {
+app.post('/api/books/:id/rating', authMiddleware, async (req, res) => {
   const bookId = req.params.id;
   const userId = req.body.userId;
   const grade = req.body.rating;
@@ -193,7 +193,7 @@ app.post('/api/books/:id/rating', async (req, res) => {
     const newAverage = newTotal / (numberOfRatings + 1); // divise le nouveau total des évaluations par le nombre total d'évaluations + 1
 
     // Ajout de la nouvelle évaluation
-    book.ratings.push({ userId, grade }); // ajoute une nouvelle évaluation dans la  ratings du livre
+    book.ratings.push({ userId, grade }); // ajoute une nouvelle évaluation dans la ratings du livre
     book.averageRating = newAverage; // met a jour la moyenne calculée
 
     // Sauvegarde du livre mis à jour
