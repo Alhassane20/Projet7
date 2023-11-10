@@ -1,12 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 const upload = require('./middlewares/multer')
 const sharp = require('sharp'); // Importer la dépendance Sharp
 const fs = require('fs'); //importer le module fs
-const path = require('path');
 const { User, Book } = require('./models/things');
 const authMiddleware = require('./middlewares/auth');
+const bcrypt = require('bcrypt');
 
 
 const app = express();
@@ -52,24 +53,34 @@ app.post('/api/auth/signup', (req, res,) => { // Créer un utilisateur
 });
 
 const jwt = require('jsonwebtoken'); // importer la bibliotheque jsonwebtoken
-app.post('/api/auth/login', (req, res,) => { // Authentifier un compte
+app.post('/api/auth/login', (req, res) => {
   const user = req.body;
-  User.findOne({ email: user.email, password: user.password }) // Récupere le mail et le mdp de la requete
+  User.findOne({ email: user.email })
     .then(userFound => {
-      if (!userFound) { // Vérifie si les infos sont corrects
+      if (!userFound) {
         return res.status(401).json({ error: 'Identifiants incorrects' });
       }
-      const token = jwt.sign(
-        { userId: userFound._id }, 'RANDOM_TOKEN_SECRET',
-      ); // Genere un token qui contient l'id de l'utilisateur et une cle secrete
-      res.status(200).json({ userId: userFound._id, token });
+      // Comparaison du mot de passe fourni avec le mot de passe haché
+      bcrypt.compare(user.password, userFound.password)
+        .then(validPassword => {
+          if (!validPassword) {
+            return res.status(401).json({ error: 'Identifiants incorrects' });
+          }
+          const token = jwt.sign(
+            { userId: userFound._id },
+            'RANDOM_TOKEN_SECRET'
+          );
+          res.status(200).json({ userId: userFound._id, token });
+        })
+        .catch(error => {
+          res.status(500).json({ error });
+        });
     })
     .catch(error => {
       res.status(404).json({ error });
-      console.error('Error authentification:', error);
+      console.error('Error authentication:', error);
     });
 });
-
 app.post('/api/books', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     // Utiliser Sharp pour optimiser l'image téléchargée
@@ -152,7 +163,7 @@ app.delete('/api/books/:id', authMiddleware, (req, res) => { // Supprimer un liv
       if (!book) {
         return res.status(404).json({ error: 'Livre non trouvé' });
       }
-      const imagePath = path.join(__dirname, book.imageUrl); // Utiliser path.join pour construire le chemin absolu
+      const imagePath = path.join(__dirname, 'image', path.basename(book.imageUrl)); // Utiliser path.join pour construire le chemin absolu
       fs.unlink(imagePath, (err) => {
         if (err) {
           console.error(err); // Afficher les erreurs dans la console
